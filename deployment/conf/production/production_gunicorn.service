@@ -1,0 +1,16 @@
+[Unit]
+Description=production-gunicorn
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+RuntimeDirectory=gunicorn
+WorkingDirectory=/mnt/data/var/vhosts/production/src
+ExecStart=/mnt/data/var/vhosts/production/venv/bin/gunicorn webapp.wsgi:application \
+  --workers=2 --log-level error \
+  --bind=unix:/var/run/gunicorn/gunicorn.socket
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=production-celeryworker
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+RuntimeDirectory=celery
+WorkingDirectory=/mnt/data/var/vhosts/production/src
+ExecStart=/mnt/data/var/vhosts/production/venv/bin/celery worker -B -A webapp \
+  -l error \
+  -s /var/run/celery/celerybeat_schedule \
+  --pidfile /var/run/celery/celerybeat.pid
+
+[Install]
+WantedBy=multi-user.target

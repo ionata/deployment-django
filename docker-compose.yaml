@@ -1,0 +1,75 @@
+version: '3'
+services:
+  db:
+    image: mdillon/postgis:9.6-alpine
+    volumes:
+      - "./var/db:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_PASSWORD: "django"
+      POSTGRES_USER: "django"
+      POSTGRES_DB: "django"
+      PGPASSWORD: "django"
+  redis:
+    image: redis:3.2-alpine
+    volumes:
+      - "./var/redis:/data"
+  celery:
+    depends_on:
+      - db
+      - redis
+    image: dangerfarms/geodrf-alpine:latest
+    links:
+      - db
+      - redis
+    volumes:
+      - "./deployment:/var/www/deployment"
+      - "./denv:/var/www/venv"
+      - "./backend:/var/www/backend"
+      - "./var:/var/www/var"
+    environment:
+      DJANGO_SETTINGS_MODULE: "${COMPOSE_PROJECT_NAME}.settings.local"
+      WAGTAILNEST_DEBUG: "True"
+    command: "/var/www/deployment/deploy run celery worker -A webapp -l info -B -f /var/www/var/logs/celery.log"
+  backend:
+    depends_on:
+      - db
+    image: dangerfarms/geodrf-alpine:latest
+    links:
+      - db
+    volumes:
+      - "./deployment:/var/www/deployment"
+      - "./denv:/var/www/venv"
+      - "./backend:/var/www/backend"
+      - "./var:/var/www/var"
+    environment:
+      DJANGO_SETTINGS_MODULE: "${COMPOSE_PROJECT_NAME}.settings.local"
+      WAGTAILNEST_DEBUG: "True"
+      WERKZEUG_DEBUG_PIN: "off"
+    command: "/var/www/deployment/deploy run python -m django runserver_plus 0.0.0.0:8000"
+    expose:
+      - "8000"
+    stdin_open: true
+    tty: true
+  frontend:
+    image: node:boron-alpine
+    volumes:
+      - "./frontend:/usr/src/app"
+    working_dir: "/usr/src/app"
+    command: "npm run dev"
+    expose:
+      - "8000"
+    stdin_open: true
+    tty: true
+  nginx:
+    depends_on:
+      - backend
+      - frontend
+    image: nginx:1.11-alpine
+    links:
+      - backend
+      - frontend
+    volumes:
+      - "./var:/var/www/var"
+      - "./deployment/conf/docker/nginx:/etc/nginx/conf.d"
+    ports:
+      - "8000:8000"
