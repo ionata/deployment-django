@@ -46,15 +46,15 @@ update(){
   echo "Compiling the frontend if npm is here"
   [[ -d frontend ]] && _has_command npm && npm --prefix frontend run build
   _venv
-  venv/bin/python -m django collectstatic --noinput
-  venv/bin/python -m django migrate --noinput
+  venv/bin/django-admin collectstatic --noinput
+  venv/bin/django-admin migrate --noinput
    _has_command systemctl && _restart
    touch "$DEPLOYED"
 }
 
 run(){
   echo "Running from $(pwd)"
-  [[ -f "$DEPLOYED" ]] || deploy
+  [[ -f "$DEPLOYED" ]] || update
   . ./venv/bin/activate
   echo "Running from venv: $@"
   "$@"
