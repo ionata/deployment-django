@@ -43,8 +43,12 @@ update(){
   _has_command sudo && _permissions
   echo "updating git"
   git pull && git submodule update
-  echo "Compiling the frontend if npm is here"
-  [[ -d frontend ]] && _has_command npm && npm --prefix frontend run build
+  git -C backend pull && git -C backend submodule update
+  if [[ -d "frontend" ]]; then
+    git -C frontend pull && git -C frontend submodule update
+    echo "Compiling the frontend if npm is here"
+    _has_command npm && npm --prefix frontend run build
+  fi
   _venv
   venv/bin/django-admin collectstatic --noinput
   venv/bin/django-admin migrate --noinput
