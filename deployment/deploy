@@ -2,18 +2,18 @@
 VAR_DIRS="var/cache var/logs var/www/static var/www/media/uploads"
 DEPLOYED="var/.deployed"
 SECRETS_PY="backend/src/local_secrets.py"
+ACTIONS=("run" "run-dev" "update" "install")
+set -x
 
 _has_command(){ command -v "$1" 2>&1 >/dev/null; }
 
 _permissions(){
-  echo "Changing permissions"
   sudo chown -R www-data:ubuntu var "$SECRETS_PY"
   sudo chmod -R u=rwX,g=rwsX,o= var
   sudo chmod -R u=r,g=r,o= "$SECRETS_PY"
 }
 
 _venv(){
-  echo "Updating the venv"
   python3 -mvenv venv
   [[ -f backend/local.requirements.txt ]] && venv/bin/pip install --upgrade -r backend/local.requirements.txt
   [[ -f backend/requirements.txt ]] && venv/bin/pip install --upgrade -r backend/requirements.txt
@@ -21,53 +21,44 @@ _venv(){
 }
 
 _restart(){
-  echo "Restarting"
   sudo systemctl restart production_gunicorn
   sudo systemctl restart production_celery
 }
 
 install(){
-  echo "Installing"
   [[ -z "$1" ]] && echo "No repository specified" && exit 1
   git clone --recursive "$1" backend
   update
 }
 
 update(){
-  echo "Deploying from $(pwd)"
-  echo "Making var dirs"
   mkdir -p $VAR_DIRS
-  echo "Making secret"
   [[ -f "$SECRETS_PY" ]] || echo "SECRET_KEY = '$(head -c36 /dev/urandom | base64 )'" > "$SECRETS_PY"
-  echo "Checking if we should make permissions"
   _has_command sudo && _permissions
-  echo "updating git"
   git pull && git submodule update
   git -C backend pull && git -C backend submodule update
   if [[ -d "frontend" ]]; then
     git -C frontend pull && git -C frontend submodule update
-    echo "Compiling the frontend if npm is here"
     _has_command npm && npm --prefix frontend run build
   fi
   _venv
-  venv/bin/django-admin collectstatic --noinput
-  venv/bin/django-admin migrate --noinput
-   _has_command systemctl && _restart
-   touch "$DEPLOYED"
+  . ./venv/bin/activate
+  django-admin collectstatic --noinput
+  django-admin migrate --noinput
+  _has_command systemctl && _restart
+  touch "$DEPLOYED"
 }
 
 run(){
-  echo "Running from $(pwd)"
   [[ -f "$DEPLOYED" ]] || update
   . ./venv/bin/activate
-  echo "Running from venv: $@"
-  "$@"
+  eval "$@"
 }
 
+run-dev(){ run "django-admin runserver_plus --pm --nopin $@"; }
+
 cd $(dirname $(dirname $(readlink -f "$0")))  # Change to ..
-echo "1: $@"
-[[ -z "$1" ]] && echo "No action specified" && exit 1
-[[ "$1" == "install" ]] && install "${@:2}" && exit 0
-[[ "$1" == "update" ]] && update && exit 0
-[[ "$1" == "run" ]] && run "${@:2}" && exit 0
-[[ -z "$1" ]] && echo "Invalid action specified" && exit 1
+for action in "${ACTIONS[@]}"; do
+	[[ "$action" == "$1" ]] && { eval "$@"; exit 0; }
+done
+echo "Invalid action specified: $action" && exit 1

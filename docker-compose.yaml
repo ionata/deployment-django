@@ -31,10 +31,9 @@ services:
       DJANGO_SETTINGS_MODULE: "${COMPOSE_PROJECT_NAME}.settings.local"
       PYTHONDONTWRITEBYTECODE: "1"
       WAGTAILNEST_DEBUG: "True"
-      WERKZEUG_DEBUG_PIN: "off"
-    command: "/var/www/deployment/deploy run django-admin runserver_plus 0.0.0.0:8000"
-    expose:
-      - "8000"
+    command: "/var/www/deployment/deploy run-dev 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
     stdin_open: true
     tty: true
 
@@ -55,29 +54,4 @@ services:
       DJANGO_SETTINGS_MODULE: "${COMPOSE_PROJECT_NAME}.settings.local"
       PYTHONDONTWRITEBYTECODE: "1"
       WAGTAILNEST_DEBUG: "True"
-    command: "/var/www/deployment/deploy run celery worker -A webapp -l info -B -f /var/www/var/logs/celery.log"
-
-  frontend:
-    image: node:boron-alpine
-    volumes:
-      - "./frontend:/usr/src/app"
-    working_dir: "/usr/src/app"
-    command: "npm run dev"
-    expose:
-      - "8000"
-    stdin_open: true
-    tty: true
-
-  nginx:
-    depends_on:
-      - backend
-      - frontend
-    image: nginx:1.11-alpine
-    links:
-      - backend
-      - frontend
-    volumes:
-      - "./var:/var/www/var"
-      - "./deployment/conf/docker/nginx:/etc/nginx/conf.d"
-    ports:
-      - "8000:8000"
+    command: "/var/www/deployment/deploy run celery worker -A wagtailnest -l info -B -f /var/www/var/logs/celery.log"
