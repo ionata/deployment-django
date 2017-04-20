@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 VAR_DIRS="var/cache var/logs var/www/static var/www/media/uploads"
 DEPLOYED="var/.deployed"
-SECRETS_PY="backend/src/local_secrets.py"
+ENV_FILE=".env"
 ACTIONS=("run" "run-dev" "update" "install")
-set -x
+
+cd $(dirname $(dirname $(readlink -f "$0")))  # Change to ..
+set -o allexport; [[ -f "$ENV_FILE" ]] && . "$ENV_FILE"; set +o allexport
 
 _has_command(){ command -v "$1" 2>&1 >/dev/null; }
 
 _permissions(){
-  sudo chown -R www-data:ubuntu var "$SECRETS_PY"
+  sudo chown -R www-data:ubuntu var
   sudo chmod -R u=rwX,g=rwsX,o= var
-  sudo chmod -R u=r,g=r,o= "$SECRETS_PY"
 }
 
 _venv(){
@@ -33,7 +34,6 @@ install(){
 
 update(){
   mkdir -p $VAR_DIRS
-  [[ -f "$SECRETS_PY" ]] || echo "SECRET_KEY = '$(head -c36 /dev/urandom | base64 )'" > "$SECRETS_PY"
   _has_command sudo && _permissions
   git pull && git submodule update
   git -C backend pull && git -C backend submodule update
@@ -55,10 +55,10 @@ run(){
   eval "$@"
 }
 
-run-dev(){ run "django-admin runserver_plus --pm --nopin $@"; }
+run-dev(){ run "django-admin runserver_plus --nopin $@"; }
 
-cd $(dirname $(dirname $(readlink -f "$0")))  # Change to ..
+set -x
 for action in "${ACTIONS[@]}"; do
 	[[ "$action" == "$1" ]] && { eval "$@"; exit 0; }
 done
-echo "Invalid action specified: $action" && exit 1
+echo "Invalid action specified: $1" && exit 1

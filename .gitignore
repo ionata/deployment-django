@@ -6,6 +6,7 @@
 .DS\_Store
 ._*
 secrets.py
+.env
 
 # Created by http://www.gitignore.io
 
