@@ -23,7 +23,7 @@ services:
       - "./backend:/var/www/backend"
       - "./var:/var/www/var"
     env_file: .env
-    command: "/var/www/deployment/deploy run-dev 0.0.0.0:8000"
+    command: "/var/www/deployment/deploy run-dev"
     expose:
       - "8000"
     stdin_open: true
@@ -43,7 +43,7 @@ services:
       - "./backend:/var/www/backend"
       - "./var:/var/www/var"
     env_file: .env
-    command: "/var/www/deployment/deploy run celery worker -A wagtailnest -l info -B -f /var/www/var/logs/celery.log"
+    command: "/var/www/deployment/deploy run celery worker -A wagtailnest -l info -B"
 
   frontend:
     image: node:boron-alpine
