@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 VAR_DIRS="var/cache var/logs var/www/static var/www/media/uploads"
 DEPLOYED="var/.deployed"
-ENV_FILE=".env"
+ENV_FILE="deployment/.env"
 ACTIONS=("run" "run-dev" "update" "install")
 
 cd $(dirname $(dirname $(readlink -f "$0")))  # Change to ..

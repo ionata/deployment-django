@@ -4,7 +4,8 @@ services:
     image: mdillon/postgis:9.6-alpine
     volumes:
       - "./var/db:/var/lib/postgresql/data"
-    env_file: .env
+    environment:
+      - POSTGRES_PASSWORD=django
 
   redis:
     image: redis:3.2-alpine
@@ -22,7 +23,8 @@ services:
       - "./denv:/var/www/venv"
       - "./backend:/var/www/backend"
       - "./var:/var/www/var"
-    env_file: .env
+    environment:
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
     command: "/var/www/deployment/deploy run-dev"
     expose:
       - "8000"
@@ -42,7 +44,8 @@ services:
       - "./denv:/var/www/venv"
       - "./backend:/var/www/backend"
       - "./var:/var/www/var"
-    env_file: .env
+    environment:
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
     command: "/var/www/deployment/deploy run celery worker -A wagtailnest -l info -B"
 
   frontend:
