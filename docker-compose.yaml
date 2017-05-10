@@ -5,6 +5,7 @@ services:
     volumes:
       - "./var/db:/var/lib/postgresql/data"
     environment:
+      - POSTGRES_USER=django
       - POSTGRES_PASSWORD=django
 
   redis:
