@@ -51,14 +51,13 @@ update(){
 
 run(){
   [[ -f "$DEPLOYED" ]] || update
-  . ./venv/bin/activate
+  { set +x; } 2> /dev/null; echo "+ . ./venv/bin/activate"; . ./venv/bin/activate; set -x
   $1 ${@:2}
 }
 
 run-dev(){ run django-admin runserver_plus --nopin --pm 0.0.0.0:8000; }
 
-set -x
 for action in "${ACTIONS[@]}"; do
-	[[ "$action" == "$1" ]] && { $1 "${@:2}"; exit 0; }
+	[[ "$action" == "$1" ]] && { set -x; $1 "${@:2}"; exit 0; }
 done
 echo "Invalid action specified: $1" && exit 1
