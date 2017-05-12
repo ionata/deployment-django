@@ -16,9 +16,11 @@ services:
   backend:
     depends_on:
       - db
+      - redis
     image: dangerfarms/geodrf-alpine:latest
     links:
       - db
+      - redis
     volumes:
       - "./deployment:/var/www/deployment"
       - "./denv:/var/www/venv"
