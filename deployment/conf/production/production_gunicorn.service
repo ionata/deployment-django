@@ -7,10 +7,7 @@ Type=simple
 User=www-data
 Group=www-data
 RuntimeDirectory=gunicorn
-EnvironmentFile=/mnt/data/var/vhosts/production/.env
-WorkingDirectory=/mnt/data/var/vhosts/production/backend/src
-ExecStart=/mnt/data/var/vhosts/production/venv/bin/gunicorn wagtailnest.wsgi:application \
-  --workers=2 --log-level error \
+ExecStart=/mnt/data/var/vhosts/production/deployment/deploy gunicorn \
   --bind=unix:/var/run/gunicorn/gunicorn.socket
 
 [Install]

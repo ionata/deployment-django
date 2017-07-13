@@ -1,77 +1,36 @@
 version: '3'
+volumes: {db:, var:, venv:, minio1:, minio2:}
 services:
   db:
-    image: mdillon/postgis:9.6-alpine
-    volumes:
-      - "./var/db:/var/lib/postgresql/data"
-    environment:
-      - POSTGRES_USER=django
-      - POSTGRES_PASSWORD=django
-
+    environment: ["POSTGRES_USER=django", "POSTGRES_PASSWORD=django"]
+    image: "mdillon/postgis:9.6-alpine"
+    ports: ["5432:5432"]
+    volumes: ["db:/var/lib/postgresql/data"]
   redis:
-    image: redis:3.2-alpine
-    volumes:
-      - "./var/redis:/data"
-
-  backend:
-    depends_on:
-      - db
-      - redis
-    image: dangerfarms/geodrf-alpine:latest
-    links:
-      - db
-      - redis
-    volumes:
-      - "./deployment:/var/www/deployment"
-      - "./denv:/var/www/venv"
-      - "./backend:/var/www/backend"
-      - "./var:/var/www/var"
-    environment:
-      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
-    command: "/var/www/deployment/deploy run-dev"
-    expose:
-      - "8000"
+    image: "redis:3.2-alpine"
+    ports: ["6379:6379"]
+    volumes: ["db:/data"]
+  # minio:
+  #   command: "server /export"
+  #   environment: ["MINIO_ACCESS_KEY=djangos3", "MINIO_SECRET_KEY=djangos3"]
+  #   image: "minio/minio"
+  #   ports: ["9000:9000"]
+  #   volumes: ["minio1:/export", "minio2:/root/.config"]
+  backend: &backend
+    command: "/bin/true"
+    image: "dangerfarms/geodrf-alpine:latest"
+    links: ["db", "redis"]
     stdin_open: true
     tty: true
-
+    volumes:
+      - "var:/var/www/var"
+      - "venv:/var/www/venv"
+      - "./deployment:/var/www/deployment"
+      - "./backend:/var/www/backend"
   celery:
-    depends_on:
-      - db
-      - redis
-    image: dangerfarms/geodrf-alpine:latest
-    links:
-      - db
-      - redis
-    volumes:
-      - "./deployment:/var/www/deployment"
-      - "./denv:/var/www/venv"
-      - "./backend:/var/www/backend"
-      - "./var:/var/www/var"
-    environment:
-      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
+    <<: *backend
     command: "/var/www/deployment/deploy run celery worker -A wagtailnest -l info -B"
-
-  frontend:
-    image: node:boron-alpine
-    volumes:
-      - "./frontend:/usr/src/app"
-    working_dir: "/usr/src/app"
-    command: "npm run dev"
-    expose:
-      - "8000"
-    stdin_open: true
-    tty: true
-
-  nginx:
-    depends_on:
-      - backend
-      - frontend
-    image: nginx:1.11-alpine
-    links:
-      - backend
-      - frontend
-    volumes:
-      - "./var:/var/www/var"
-      - "./deployment/conf/docker/nginx:/etc/nginx/conf.d"
-    ports:
-      - "8000:8000"
+  runserver:
+    <<: *backend
+    command: "/var/www/deployment/deploy run-dev"
+    ports: ["8000:8000"]

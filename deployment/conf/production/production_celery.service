@@ -7,10 +7,7 @@ Type=simple
 User=www-data
 Group=www-data
 RuntimeDirectory=celery
-EnvironmentFile=/mnt/data/var/vhosts/production/.env
-WorkingDirectory=/mnt/data/var/vhosts/production/backend/src
-ExecStart=/mnt/data/var/vhosts/production/venv/bin/celery worker -B -A wagtailnest \
-  -l error \
+ExecStart=/mnt/data/var/vhosts/production/deploy celery \
   -s /var/run/celery/celerybeat_schedule \
   --pidfile /var/run/celery/celerybeat.pid
 

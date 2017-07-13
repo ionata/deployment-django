@@ -1,63 +1,46 @@
 #!/usr/bin/env bash
-VAR_DIRS="var/cache var/logs var/www/static var/www/media/uploads"
-DEPLOYED="var/.deployed"
-ENV_FILE="deployment/.env"
-ACTIONS=("run" "run-dev" "update" "install")
-
 cd $(dirname $(dirname $(readlink -f "$0")))  # Change to ..
-set -o allexport; [[ -f "$ENV_FILE" ]] && . "$ENV_FILE"; set +o allexport
+ENV="$(pwd)/deployment/.env"
+VAR="$(pwd)/var"
+VENV="$(pwd)/venv"
+VAR_DIRS="$VAR/cache $VAR/logs $VAR/www/static $VAR/www/media/uploads"
+DEPLOYED="$VAR/.deployed"
+ACTIONS=("celery" "gunicorn" "run" "run-dev" "update")
+
+set -o allexport; source "$ENV"; set +o allexport
+[[ -z "$DJCORE_VAR_ROOT" ]] && export DJCORE_VAR_ROOT="$VAR"
 
 _has_command(){ command -v "$1" 2>&1 >/dev/null; }
+_permissions(){ sudo chown -R www-data:ubuntu $VAR; sudo chmod -R u=rwX,g=rwsX,o= $VAR; }
+_venvup() { { set +x; } 2> /dev/null; echo "+ . $VENV/bin/activate"; . $VENV/bin/activate; set -x; }
 
-_permissions(){
-  sudo chown -R www-data:ubuntu var
-  sudo chmod -R u=rwX,g=rwsX,o= var
-}
-
-_venv(){
-  python3 -mvenv venv
-  [[ -f backend/local.requirements.txt ]] && venv/bin/pip install --upgrade -r backend/local.requirements.txt
-  [[ -f backend/requirements.txt ]] && venv/bin/pip install --upgrade -r backend/requirements.txt
-  echo "$(pwd)/backend/src/" > venv/lib/python3.5/site-packages/backend.pth
-}
-
-_restart(){
-  sudo systemctl restart production_gunicorn
-  sudo systemctl restart production_celery
-}
-
-install(){
-  [[ -z "$1" ]] && echo "No repository specified" && exit 1
-  git clone --recursive "$1" backend
-  update
-}
+self-update(){ git pull && git submodule update; }
 
 update(){
-  mkdir -p $VAR_DIRS
-  _has_command sudo && _permissions
-  git pull && git submodule update
-  git -C backend pull && git -C backend submodule update
-  if [[ -d "frontend" ]]; then
-    git -C frontend pull && git -C frontend submodule update
-    _has_command npm && npm --prefix frontend run build
-  fi
-  _venv
-  . ./venv/bin/activate
+  mkdir -p $VAR_DIRS; _has_command sudo && _permissions
+  [[ -d backend/src/ ]] && git -C backend pull && git -C backend submodule update
+  _has_command virtualenv && virtualenv "$VENV" || python3 -mvenv "$VENV"
+  _venvup
+  pip install --upgrade pip setuptools wheel
+  [[ -d backend/src/ ]] && pip install -e backend || pip install -e "$DJCORE_GIT_REPO"
+  [[ -f backend/requirements.txt ]] && pip install --upgrade -r backend/requirements.txt
   django-admin collectstatic --noinput
   django-admin migrate --noinput
-  _has_command systemctl && _restart
+  django-admin setup_skeletons
+  _has_command systemctl && sudo systemctl restart production_*
   touch "$DEPLOYED"
 }
 
 run(){
-  [[ -f "$DEPLOYED" ]] || update
-  { set +x; } 2> /dev/null; echo "+ . ./venv/bin/activate"; . ./venv/bin/activate; set -x
-  $1 ${@:2}
+  [[ ! -f "$DEPLOYED" ]] && echo "Not deployed" && exit 1
+  _venvup && $1 ${@:2}
 }
 
 run-dev(){ run django-admin runserver_plus --nopin --pm 0.0.0.0:8000; }
+celery(){ run celery $CELERY_CONF ${@:2}; }
+gunicorn(){ run gunicorn $GUNICORN_CONF ${@:2}; }
 
 for action in "${ACTIONS[@]}"; do
-	[[ "$action" == "$1" ]] && { set -x; $1 "${@:2}"; exit 0; }
+  [[ "$action" == "$1" ]] && { set -x; $1 "${@:2}"; exit 0; }
 done
 echo "Invalid action specified: $1" && exit 1
