@@ -37,8 +37,8 @@ run(){
 }
 
 run-dev(){ run django-admin runserver_plus --nopin --pm 0.0.0.0:8000; }
-celery(){ run venv/bin/celery $CELERY_CONF ${@:2}; }
-gunicorn(){ run venv/bin/gunicorn $GUNICORN_CONF ${@:2}; }
+celery(){ run venv/bin/celery "$CELERY_CONF" "$@"; }
+gunicorn(){ run venv/bin/gunicorn "$GUNICORN_CONF" "$@"; }
 
 for action in "${ACTIONS[@]}"; do
   [[ "$action" == "$1" ]] && { set -x; $1 "${@:2}"; exit 0; }
