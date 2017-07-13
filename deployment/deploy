@@ -5,7 +5,7 @@ VAR="$(pwd)/var"
 VENV="$(pwd)/venv"
 VAR_DIRS="$VAR/cache $VAR/logs $VAR/www/static $VAR/www/media/uploads"
 DEPLOYED="$VAR/.deployed"
-ACTIONS=("celery" "gunicorn" "run" "run-dev" "update")
+ACTIONS=("celery" "gunicorn" "run" "run-dev" "self-update" "update")
 
 set -o allexport; source "$ENV"; set +o allexport
 [[ -z "$DJCORE_VAR_ROOT" ]] && export DJCORE_VAR_ROOT="$VAR"
