@@ -1,5 +1,5 @@
 version: '3'
-volumes: {db:, var:, venv:, minio1:, minio2:}
+volumes: {db:, var:, venv:, minio1:, minio2:, redis:}
 services:
   db:
     environment: ["POSTGRES_USER=django", "POSTGRES_PASSWORD=django"]
@@ -9,13 +9,13 @@ services:
   redis:
     image: "redis:3.2-alpine"
     ports: ["6379:6379"]
-    volumes: ["db:/data"]
-  # minio:
-  #   command: "server /export"
-  #   environment: ["MINIO_ACCESS_KEY=djangos3", "MINIO_SECRET_KEY=djangos3"]
-  #   image: "minio/minio"
-  #   ports: ["9000:9000"]
-  #   volumes: ["minio1:/export", "minio2:/root/.config"]
+    volumes: ["redis:/data"]
+  minio:
+    command: "server /export"
+    environment: ["MINIO_ACCESS_KEY=djangos3", "MINIO_SECRET_KEY=djangos3"]
+    image: "minio/minio"
+    ports: ["9000:9000"]
+    volumes: ["minio1:/export", "minio2:/root/.config"]
   backend: &backend
     command: "/bin/true"
     image: "dangerfarms/geodrf-alpine:latest"
