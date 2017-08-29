@@ -4,6 +4,7 @@
 *~
 .*.sw?
 .DS\_Store
+.deployed
 ._*
 secrets.py
 .env

@@ -2,9 +2,9 @@
 cd $(dirname $(dirname $(readlink -f "$0")))  # Change to ..
 ENV="$(pwd)/deployment/.env"
 VAR="$(pwd)/var"
+DEP="$(pwd)/deployment/.deployed"
 VENV="$(pwd)/venv"
 VAR_DIRS="$VAR/cache $VAR/logs $VAR/www/static $VAR/www/media/uploads"
-DEPLOYED="$VAR/.deployed"
 ACTIONS=("celery" "gunicorn" "run" "run-dev" "self-update" "update")
 
 set -o allexport; source "$ENV"; set +o allexport
@@ -12,7 +12,7 @@ set -o allexport; source "$ENV"; set +o allexport
 
 _has_command(){ command -v "$1" 2>&1 >/dev/null; }
 _permissions(){ sudo chown -R www-data:ubuntu $VAR; sudo chmod -R u=rwX,g=rwsX,o= $VAR; }
-_venvup() { { set +x; } 2> /dev/null; echo "+ . $VENV/bin/activate"; . $VENV/bin/activate; set -x; }
+_venvup() { { set +x; } 2> /dev/null; echo "+ . $VENV/bin/activate"; . "$VENV/bin/activate"; set -x; }
 
 self-update(){ git pull && git submodule update; }
 
@@ -28,15 +28,15 @@ update(){
   django-admin migrate --noinput
   django-admin setup_skeletons
   _has_command systemctl && sudo systemctl restart production_*
-  touch "$DEPLOYED"
+  touch "$DEP"
 }
 
 run(){
-  [[ ! -f "$DEPLOYED" ]] && echo "Not deployed" && exit 1
+  [[ ! -f "$DEP" ]] && echo "Not deployed" && exit 1
   _venvup && $1 ${@:2}
 }
 
-run-dev(){ run django-admin runserver_plus --nopin --pm 0.0.0.0:8000; }
+run-dev(){ run django-admin runserver_plus --nopin 0.0.0.0:8000; }
 celery(){ run venv/bin/celery "$CELERY_CONF" "$@"; }
 gunicorn(){ run venv/bin/gunicorn "$GUNICORN_CONF" "$@"; }
 

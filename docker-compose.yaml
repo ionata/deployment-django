@@ -20,6 +20,11 @@ services:
     command: "/bin/true"
     image: "dangerfarms/geodrf-alpine:latest"
     links: ["db", "redis"]
+    environment:
+      - "DJANGO_SETTINGS_MODULE=dj_core.settings"
+      - "DJCORE_APP_NAME=${COMPOSE_PROJECT_NAME}"
+      - "DJCORE_TEMPLATE_DEBUG=1"
+      - "DJCORE_DEBUG=1"
     stdin_open: true
     tty: true
     volumes:
@@ -29,7 +34,7 @@ services:
       - "./backend:/var/www/backend"
   celery:
     <<: *backend
-    command: "/var/www/deployment/deploy run celery worker -A wagtailnest -l info -B"
+    command: "/var/www/deployment/deploy run celery worker -A dj_core -l info -B"
   runserver:
     <<: *backend
     command: "/var/www/deployment/deploy run-dev"
