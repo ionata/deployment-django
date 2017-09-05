@@ -16,18 +16,24 @@ class Deployer:
         self.deploy_marker = path.join(self.deploy_root, '.deployed')
         self.deploy_env = path.join(self.deploy_root, '.env')
         self.deploy_venv = path.join(self.deploy_root, 'venv')
-        self.deploy_bin = path.join(self.deploy_root, 'venv', 'bin')
-        self.project_root = path.dirname(self.deploy_root)
-        self.project_env = path.join(self.project_root, 'src', '.env')
-        self.project_venv = path.join(self.project_root, 'venv')
-        self.project_bin = path.join(self.project_root, 'venv', 'bin')
+        self.deploy_bin = path.join(self.deploy_venv, 'bin')
+        self.root = path.dirname(self.deploy_root)
+        self.project_root = path.realpath(
+            environ.get('PROJECT_ROOT', path.join(self.root, 'backend')))
+        self.project_env = path.join(self.project_root, '.env')
+        self.project_venv = path.realpath(
+            environ.get('VIRTUAL_ENV', path.join(self.project_root, 'venv')))
+        self.project_bin = path.join(self.project_venv, 'bin')
 
     def _setup(self):
         import pip
         pip.main(['install', '--upgrade', 'python-dotenv'])
         from dotenv import load_dotenv
-        load_dotenv(self.deploy_env)
+        for envfile in [self.deploy_env, self.project_env]:
+            if path.exists(envfile):
+                load_dotenv(envfile)
 
+    @property
     def _in_venv(self):
         return environ.get('VIRTUAL_ENV') == self.deploy_venv
 
@@ -39,7 +45,12 @@ class Deployer:
 
     def _run(self):
         action = (sys.argv[1:2] + ['help'])[0].replace('-', '_')
-        return getattr(self, action if action in self.actions else 'help')
+        func = getattr(self, action if action in self.actions else 'help')
+        command = sys.argv[2:]
+        if command:
+            func(command)
+        else:
+            func()
 
     def deploy(self):
         if not self._in_venv:
@@ -53,7 +64,8 @@ class Deployer:
         if project_venv:
             env['VIRTUAL_ENV'] = self.project_venv
             if self.project_bin not in sys.path:
-                sys.path = self.project_bin + sys.path
+                sys.path = [self.project_bin] + sys.path
+                env['PATH'] = ':'.join([self.project_bin, env['PATH']])
         run(cmd.split(' ') if isinstance(cmd, str) else cmd, env=env, **kwargs)
 
     def self_update(self):
