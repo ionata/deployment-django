@@ -31,11 +31,11 @@ services:
       - "var:/var/www/var"
       - "venv:/var/www/venv"
       - "./deployment:/var/www/deployment"
-      - "./backend:/var/www/backend"
+      - "${PROJECT_ROOT}:/var/www/backend"
   celery:
     <<: *backend
-    command: "/var/www/deployment/deploy run celery worker -A dj_core -l info -B"
+    command: "/var/www/deployment/deploy.py run celery worker -A dj_core -l info -B"
   runserver:
     <<: *backend
-    command: "/var/www/deployment/deploy run-dev"
+    command: "/var/www/deployment/deploy.py run-dev"
     ports: ["8000:8000"]
