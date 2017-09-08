@@ -116,7 +116,7 @@ class Deployer:
         self._create_venv(self.project_venv)
         self._update_venv(self.project_venv)
         if not path.exists(path.join(self.project_root, 'src')):
-            self.run('pip install -e %s' % environ('DJCORE_GIT_REPO'))
+            self.run('pip install -e %s' % environ['DJCORE_GIT_REPO'])
         else:
             git = 'git -C %s' % self.project_root
             self.run('%s pull' % git) and self.run('%s submodule update' % git)
