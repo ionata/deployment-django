@@ -23,14 +23,18 @@ class Deployer:
     def __init__(self):
         self._get_paths()
 
+    @property
+    def _in_container(self):  # pylint: disable=no-self-use
+        return path.exists('/.dockerenv')
+
     def _get_paths(self):
         self.deploy_script = path.realpath(__file__)
         self.deploy_root = path.dirname(self.deploy_script)
         self.deploy_marker = path.join(
-            self.deploy_root, environ.get('COMPOSE_PROJECT_NAME', ''), '.deployed')
+            self.deploy_root, environ.get('DJCORE_APP_NAME', ''), '.deployed')
         self.deploy_env = path.join(self.deploy_root, '.env')
         self.deploy_venv = path.join(
-            self.deploy_root, environ.get('COMPOSE_PROJECT_NAME', ''), 'venv')
+            self.deploy_root, environ.get('DJCORE_APP_NAME', ''), 'venv')
         self.deploy_bin = path.join(self.deploy_venv, 'bin')
         self.root = path.dirname(self.deploy_root)
         self.project_root = path.realpath(
@@ -109,25 +113,30 @@ class Deployer:
         run(cmd, env=env, **kwargs)
 
     def self_update(self):
-        self._update_venv(self.project_venv)
+        self._update_venv(self.deploy_venv)
         self.run('git pull') and self.run('git submodule update')
+
+    def install(self):
+        if not path.exists(path.join(self.project_root, 'setup.py')):
+            self.run('pip install -e %s' % environ['DJCORE_GIT_REPO'])
+            return
+        self.run('pip install -e %s' % self.project_root)
+        requirements = path.join(self.project_root, 'requirements.txt')
+        if path.exists(requirements):
+            self.run('pip install --upgrade -r %s' % requirements)
 
     def update(self):
         self._create_venv(self.project_venv)
         self._update_venv(self.project_venv)
-        if not path.exists(path.join(self.project_root, 'src')):
-            self.run('pip install -e %s' % environ['DJCORE_GIT_REPO'])
-        else:
+        if path.exists(path.join(self.project_root, '.git')) and not self._in_container:
             git = 'git -C %s' % self.project_root
-            self.run('%s pull' % git) and self.run('%s submodule update' % git)
-            self.run('pip install -e %s' % self.project_root)
-            requirements = path.join(self.project_root, 'requirements.txt')
-            if path.exists(requirements):
-                self.run('pip install --upgrade -r %s' % requirements)
+            self.run('%s pull' % git)
+            self.run('%s submodule update' % git)
+        self.install()
         self.run('django-admin collectstatic --noinput')
         self.run('django-admin migrate --noinput')
         self.run('django-admin setup_skeletons')
-        if None not in (which('systemctl'), which('systemctl')):
+        if None not in (which('sudo'), which('systemctl')):
             self.run('sudo systemctl restart production_*')
         Path(self.deploy_marker).touch(exist_ok=True)
 
