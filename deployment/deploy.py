@@ -76,6 +76,9 @@ class Deployer:
         cmd = [path.join(self.deploy_bin, 'python3'), self.deploy_script] + sys.argv[1:]
         self.run(cmd, False, env={**environ.copy(), **{'VIRTUAL_ENV': self.deploy_venv}})
 
+    def _get_conf(self, conf):  # pylint: disable=no-self-use
+        return (lambda x: x and x.split(' ') or [])(environ.get(conf, ''))
+
     def _run(self):
         action = (sys.argv[1:2] + ['help'])[0].replace('-', '_')
         func = getattr(self, action if action in self.actions else 'help')
@@ -143,11 +146,11 @@ class Deployer:
     def run_dev(self):
         self.run(['django-admin', 'runserver_plus', '--nopin', '0.0.0.0:8000'])
 
-    def celery(self, cmd):
-        self.run('celery "$CELERY_CONF" {}'.format(cmd))
+    def celery(self, cmd=None):
+        self.run(['celery'] + self._get_conf('CELERY_CONF') + (cmd or []))
 
-    def gunicorn(self, cmd):
-        self.run('gunicorn "$GUNICORN_CONF" {}'.format(cmd))
+    def gunicorn(self, cmd=None):
+        self.run(['gunicorn'] + self._get_conf('GUNICORN_CONF') + (cmd or []))
 
     def help(self):  # pylint: disable=no-self-use
         print('Please provide an option')
