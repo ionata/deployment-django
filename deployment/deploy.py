@@ -54,7 +54,7 @@ class Deployer:
             return
         for envfile in [self.deploy_env, self.project_env]:
             if path.exists(envfile):
-                load_dotenv(envfile)
+                load_dotenv(envfile, override=True)
 
     @property
     def _in_venv(self):

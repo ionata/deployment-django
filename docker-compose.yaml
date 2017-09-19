@@ -23,7 +23,6 @@ services:
     environment:
       - "DJANGO_SETTINGS_MODULE=dj_core.settings"
       - "DJCORE_APP_NAME=${COMPOSE_PROJECT_NAME}"
-      - "DJCORE_TEMPLATE_DEBUG=1"
       - "DJCORE_DEBUG=1"
       - "DJCORE_SECRET_KEY=super_secret_secret_key"
       - "PYTHONDONTWRITEBYTECODE=nope"
