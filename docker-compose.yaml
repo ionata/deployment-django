@@ -1,5 +1,5 @@
 version: '3'
-volumes: {db:, var:, venv:, minio1:, minio2:, redis:}
+volumes: {home:, db:, var:, denv:, venv:, minio1:, minio2:, redis:}
 services:
   db:
     environment: ["POSTGRES_USER=django", "POSTGRES_PASSWORD=django"]
@@ -31,6 +31,8 @@ services:
     volumes:
       - "var:/var/www/var"
       - "venv:/var/www/venv"
+      - "denv:/var/www/denv"
+      - "home:/root"
       - "./deployment:/var/www/deployment"
       - "${PROJECT_ROOT}:/var/www/backend"
   celery:

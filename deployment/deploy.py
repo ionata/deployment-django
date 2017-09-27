@@ -21,6 +21,7 @@ class Deployer:
     ]
 
     def __init__(self):
+        self.project = environ.get('COMPOSE_PROJCT_NAME')
         self._get_paths()
 
     @property
@@ -29,12 +30,16 @@ class Deployer:
 
     def _get_paths(self):
         self.deploy_script = path.realpath(__file__)
-        self.deploy_root = path.dirname(self.deploy_script)
-        self.deploy_marker = path.join(
-            self.deploy_root, environ.get('DJCORE_APP_NAME', ''), '.deployed')
-        self.deploy_env = path.join(self.deploy_root, '.env')
-        self.deploy_venv = path.join(
-            self.deploy_root, environ.get('DJCORE_APP_NAME', ''), 'venv')
+        deploy_root = path.dirname(self.deploy_script)
+        self.deploy_env = path.join(deploy_root, '.env')
+        if self._in_container:
+            self.deploy_root = path.join(path.dirname(deploy_root), 'denv')
+        elif self.project:
+            self.deploy_root = path.join(deploy_root, 'projects', self.project)
+        else:
+            self.deploy_root = deploy_root
+        self.deploy_marker = path.join(self.deploy_root, '.deployed')
+        self.deploy_venv = path.join(self.deploy_root, 'venv')
         self.deploy_bin = path.join(self.deploy_venv, 'bin')
         self.root = path.dirname(self.deploy_root)
         self.project_root = path.realpath(
