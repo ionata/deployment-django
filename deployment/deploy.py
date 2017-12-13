@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 # pylint: disable=expression-not-assigned
+import os
+import sys
 from os import environ, path
 from pathlib import Path
-from subprocess import run
 from shutil import which
-import sys
+from subprocess import run
+
+
+WIN = os.name == 'nt'
+bin_dir = 'Scripts' if WIN else 'bin'
+
+
+def get_bin(venv, bin_name):
+    return path.join(venv, bin_dir, bin_name + ('.exe' if WIN else ''))
 
 
 class Deployer:
@@ -40,14 +49,14 @@ class Deployer:
             self.deploy_root = deploy_root
         self.deploy_marker = path.join(self.deploy_root, '.deployed')
         self.deploy_venv = path.join(self.deploy_root, 'venv')
-        self.deploy_bin = path.join(self.deploy_venv, 'bin')
+        self.deploy_bin = path.join(self.deploy_venv, bin_dir)
         self.root = path.dirname(self.deploy_root)
         self.project_root = path.realpath(
             environ.get('PROJECT_ROOT', path.join(self.root, 'backend')))
         self.project_env = path.join(self.project_root, '.env')
         self.project_venv = path.realpath(
             environ.get('PROJECT_VENV', path.join(self.root, 'venv')))
-        self.project_bin = path.join(self.project_venv, 'bin')
+        self.project_bin = path.join(self.project_venv, bin_dir)
 
     def _setup(self):
         import pip
@@ -66,19 +75,19 @@ class Deployer:
         return environ.get('VIRTUAL_ENV') == self.deploy_venv
 
     def _create_venv(self, venv_dir):
-        if not path.exists(path.join(venv_dir, 'bin', 'pip')):
+        if not path.exists(get_bin(venv_dir, 'pip')):
             import venv
             venv.create(venv_dir, with_pip=True)
             self._update_venv(self.deploy_venv)
 
     def _update_venv(self, venv_dir):  # pylint: disable=no-self-use
-        pip = path.join(venv_dir, 'bin', 'pip')
+        pip = get_bin(venv_dir, 'pip')
         cmd = '{} install --upgrade pip setuptools wheel'.format(pip).split(' ')
         run(cmd)
 
     def _rerun_in_venv(self):
         self._create_venv(self.deploy_venv)
-        cmd = [path.join(self.deploy_bin, 'python3'), self.deploy_script] + sys.argv[1:]
+        cmd = [get_bin(self.deploy_venv, 'python'), self.deploy_script] + sys.argv[1:]
         self.run(cmd, False, env={**environ.copy(), **{'VIRTUAL_ENV': self.deploy_venv}})
 
     def _get_conf(self, conf):  # pylint: disable=no-self-use
