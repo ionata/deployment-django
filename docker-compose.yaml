@@ -1,28 +1,32 @@
 version: '3'
-volumes: {home:, db:, var:, denv:, venv:, minio1:, minio2:, redis:}
+volumes: {home:, db:, msdb:, var:, denv:, venv:, minio1:, minio2:, redis:, npm:}
 services:
   db:
     environment: ["POSTGRES_USER=django", "POSTGRES_PASSWORD=django"]
     image: "mdillon/postgis:9.6-alpine"
-    ports: ["5432:5432"]
     volumes: ["db:/var/lib/postgresql/data"]
+  msdb:
+    environment: ["ACCEPT_EULA=Y", "SA_PASSWORD=djangoA1"]
+    image: "microsoft/mssql-server-linux"
+    volumes: ["msdb:/var/opt/mssql"]
   redis:
     image: "redis:3.2-alpine"
-    ports: ["6379:6379"]
     volumes: ["redis:/data"]
   minio:
     command: "server /export"
     environment: ["MINIO_ACCESS_KEY=djangos3", "MINIO_SECRET_KEY=djangos3"]
     image: "minio/minio"
-    ports: ["9000:9000"]
     volumes: ["minio1:/export", "minio2:/root/.config"]
   backend: &backend
     command: "/bin/true"
-    image: "dangerfarms/geodrf-alpine:latest"
+    build:
+      context: "."
+      dockerfile: "./deployment/conf/docker/Dockerfile"
+    image: "ionata_backend"
     links: ["db", "redis"]
     environment:
       - "DJANGO_SETTINGS_MODULE=dj_core.settings"
-      - "DJCORE_APP_NAME=${COMPOSE_PROJECT_NAME}"
+      - "DJCORE_APP_NAME=${COMPOSE_PROJECT_NAME:-blankproject}"
       - "DJCORE_DEBUG=1"
       - "DJCORE_SECRET_KEY=super_secret_secret_key"
       - "PYTHONDONTWRITEBYTECODE=nope"
@@ -34,11 +38,19 @@ services:
       - "denv:/var/www/denv"
       - "home:/root"
       - "./deployment:/var/www/deployment"
-      - "${PROJECT_ROOT}:/var/www/backend"
+      - "${BACKEND_ROOT:-./backend}:/var/www/backend"
   celery:
     <<: *backend
-    command: "/var/www/deployment/deploy.py run celery worker -A dj_core -l info -B"
+    command: "/var/www/deployment/deploy.py celery worker -A dj_core -l info -B"
   runserver:
     <<: *backend
     command: "/var/www/deployment/deploy.py run-dev"
-    ports: ["8000:8000"]
+  frontend:
+    command: "npm run --prefix /var/www dev"
+    image: "ionata_backend"
+    volumes: ["${FRONTEND_ROOT:-./frontend}:/var/www"]
+  web:
+    image: "nginx:mainline-alpine"
+    volumes: ["./deployment/conf/docker/nginx.conf:/etc/nginx/nginx.conf"]
+    links: ["runserver", "minio"]
+    ports: ["${OUTPORT:-8000}:80"]
