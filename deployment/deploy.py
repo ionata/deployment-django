@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Wrapper for ensuring dj-core style projects run properly."""
 # pylint: disable=expression-not-assigned
 import os
 import sys
@@ -7,16 +8,17 @@ from pathlib import Path
 from shutil import which
 from subprocess import run
 
-
 WIN = os.name == 'nt'
 bin_dir = 'Scripts' if WIN else 'bin'
 
 
-def get_bin(venv, bin_name):
+def _bin(venv, bin_name):
     return path.join(venv, bin_dir, bin_name + ('.exe' if WIN else ''))
 
 
 class Deployer:
+    """Wrapper class for deploying and running dj-core apps."""
+
     pre_deploy_actions = [
         'help',
         'self_update',
@@ -30,6 +32,7 @@ class Deployer:
     ]
 
     def __init__(self):
+        """Initialise instance variables."""
         self.project = environ.get('COMPOSE_PROJCT_NAME')
         self._get_paths()
 
@@ -59,11 +62,11 @@ class Deployer:
         self.project_bin = path.join(self.project_venv, bin_dir)
 
     def _setup(self):
-        import pip
-        pip.main(['install', '--upgrade', 'python-dotenv'])
         try:
             from dotenv import load_dotenv
         except ImportError:
+            import pip
+            pip.main(['install', '--upgrade', 'python-dotenv'])
             self._rerun_in_venv()
             return
         for envfile in [self.deploy_env, self.project_env]:
@@ -75,28 +78,32 @@ class Deployer:
         return environ.get('VIRTUAL_ENV') == self.deploy_venv
 
     def _create_venv(self, venv_dir):
-        if not path.exists(get_bin(venv_dir, 'pip')):
+        if not path.exists(_bin(venv_dir, 'pip')):
             import venv
             venv.create(venv_dir, with_pip=True)
             self._update_venv(self.deploy_venv)
 
     def _update_venv(self, venv_dir):  # pylint: disable=no-self-use
-        pip = get_bin(venv_dir, 'pip')
-        cmd = '{} install --upgrade pip setuptools wheel'.format(pip).split(' ')
+        pip = _bin(venv_dir, 'pip')
+        cmd = ('%s install --upgrade pip setuptools wheel' % pip).split(' ')
         run(cmd)
 
     def _rerun_in_venv(self):
         self._create_venv(self.deploy_venv)
-        cmd = [get_bin(self.deploy_venv, 'python'), self.deploy_script] + sys.argv[1:]
-        self.run(cmd, False, env={**environ.copy(), **{'VIRTUAL_ENV': self.deploy_venv}})
+        cmd = [_bin(self.deploy_venv, 'python'), self.deploy_script]
+        env = {**environ.copy(), **{'VIRTUAL_ENV': self.deploy_venv}}
+        self.run(cmd + sys.argv[1:], False, env=env)
 
     def _get_conf(self, conf):  # pylint: disable=no-self-use
         return (lambda x: x and x.split(' ') or [])(environ.get(conf, ''))
 
+    def _deployed(self):
+        return path.exists(self.deploy_marker)
+
     def _run(self):
         action = (sys.argv[1:2] + ['help'])[0].replace('-', '_')
         func = getattr(self, action if action in self.actions else 'help')
-        if action not in self.pre_deploy_actions and not path.exists(self.deploy_marker):
+        if action not in self.pre_deploy_actions and not self._deployed:
             print('Not deployed')
             return
         command = sys.argv[2:]
@@ -106,6 +113,7 @@ class Deployer:
             func()
 
     def deploy(self):
+        """Wrap around command calls to ensure everything is setup first."""
         if not self._in_venv:
             self._rerun_in_venv()
             return
@@ -113,6 +121,7 @@ class Deployer:
         self._run()
 
     def run(self, cmd, project_venv=True, **kwargs):
+        """Run commands with the correct env."""
         env = kwargs.pop('env', None) or environ.copy()
         cmd = cmd.split(' ') if isinstance(cmd, str) else cmd
         if project_venv:
@@ -121,15 +130,17 @@ class Deployer:
             if self.project_bin not in env['PATH']:
                 env['PATH'] = ':'.join([self.project_bin, env['PATH']])
                 environ['PATH'] = env['PATH']
-        command = which(cmd[0])
-        if command is None:
-            print('{} is not on the path ({})'.format(cmd[0], env['PATH']))
-            return
-        cmd[0] = command
+        if cmd[0][0] != '/':
+            command = which(cmd[0])
+            if command is None:
+                print('{} is not on the path ({})'.format(cmd[0], env['PATH']))
+                return
+            cmd[0] = command
         print('> ' + ' '.join(cmd))
         run(cmd, env=env, **kwargs)
 
     def self_update(self):
+        """Manage this repo."""
         self._update_venv(self.deploy_venv)
         self.run('git pull') and self.run('git submodule update')
 

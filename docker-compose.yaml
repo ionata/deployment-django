@@ -51,6 +51,6 @@ services:
     volumes: ["${FRONTEND_ROOT:-./frontend}:/var/www"]
   web:
     image: "nginx:mainline-alpine"
-    volumes: ["./deployment/conf/docker/nginx.conf:/etc/nginx/nginx.conf"]
+    volumes: ["./deployment/conf/docker/nginx-${NGINX_CONF:-spa}.conf:/etc/nginx/nginx.conf"]
     links: ["runserver", "minio"]
     ports: ["${OUTPORT:-8000}:80"]
