@@ -148,7 +148,7 @@ class Deployer:
         if not path.exists(path.join(self.project_root, 'setup.py')):
             self.run('pip install -e %s' % environ['DJCORE_GIT_REPO'])
             return
-        self.run('pip install -e %s' % self.project_root)
+        self.run('pip install -e %s[dev]' % self.project_root)
         requirements = path.join(self.project_root, 'requirements.txt')
         if path.exists(requirements):
             self.run('pip install --upgrade -r %s' % requirements)
