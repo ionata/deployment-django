@@ -19,9 +19,7 @@ services:
     volumes: ["minio1:/export", "minio2:/root/.config"]
   backend: &backend
     command: "/bin/true"
-    build:
-      context: "."
-      dockerfile: "./deployment/conf/docker/Dockerfile"
+    build: "./deployment/conf/docker/"
     image: "ionata_backend"
     links: ["db", "redis"]
     environment:
@@ -49,6 +47,7 @@ services:
     command: "npm run --prefix /var/www dev"
     image: "ionata_backend"
     volumes: ["${FRONTEND_ROOT:-./frontend}:/var/www"]
+    depends_on: ["backend"]
   web:
     image: "nginx:mainline-alpine"
     volumes: ["./deployment/conf/docker/nginx-${NGINX_CONF:-spa}.conf:/etc/nginx/nginx.conf"]
