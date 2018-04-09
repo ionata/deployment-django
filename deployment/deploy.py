@@ -85,8 +85,8 @@ class Deployer:
 
     def _update_venv(self, venv_dir):  # pylint: disable=no-self-use
         pip = _bin(venv_dir, 'pip')
-        cmd = ('%s install --upgrade pip setuptools wheel' % pip).split(' ')
-        run(cmd)
+        cmd = '%s install --upgrade pip pipenv setuptools wheel' % pip
+        run(cmd.split(' '))
 
     def _rerun_in_venv(self):
         self._create_venv(self.deploy_venv)
@@ -145,10 +145,17 @@ class Deployer:
         self.run('git pull') and self.run('git submodule update')
 
     def install(self):
-        if not path.exists(path.join(self.project_root, 'setup.py')):
-            self.run('pip install -e %s' % environ['DJCORE_GIT_REPO'])
-            return
-        self.run('pip install -e %s' % self.project_root)
+        setup_path = path.join(self.project_root, 'setup.py')
+        pipfile_path = path.join(self.project_root, 'Pipfile')
+        __import__('pdb').set_trace()
+        if not path.exists(setup_path) and not path.exists(pipfile_path):
+            self.run('git clone {} {}'.format(
+                environ['DJCORE_GIT_REPO'], self.project_root))
+        if path.exists(pipfile_path):
+            os.chdir(self.project_root)
+            self.run('pipenv install')
+        else:
+            self.run('pip install -e %s' % self.project_root)
         requirements = path.join(self.project_root, 'requirements.txt')
         if path.exists(requirements):
             self.run('pip install --upgrade -r %s' % requirements)
