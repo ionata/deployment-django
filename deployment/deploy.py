@@ -152,9 +152,9 @@ class Deployer:
                 environ['DJCORE_GIT_REPO'], self.project_root))
         if path.exists(pipfile_path):
             os.chdir(self.project_root)
-            self.run('pipenv install')
+            self.run('pipenv install --dev')
         else:
-            self.run('pip install -e %s' % self.project_root)
+            self.run('pip install -e %s[dev]' % self.project_root)
         requirements = path.join(self.project_root, 'requirements.txt')
         if path.exists(requirements):
             self.run('pip install --upgrade -r %s' % requirements)
