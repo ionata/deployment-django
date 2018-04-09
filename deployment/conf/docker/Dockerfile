@@ -2,10 +2,11 @@ FROM ubuntu:16.04
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV PYTHONUNBUFFERED 1
+ENV ACCEPT_EULA Y
 
-RUN apt-get update -y && \
-  apt-get install --auto-remove -y \
-    apt-transport-https \
+RUN apt-get update -y && apt-get install --auto-remove -y apt-transport-https
+RUN apt-get update -y && apt-get install --auto-remove -y \
+    software-properties-common \
     apt-utils \
     binutils \
     build-essential \
@@ -21,34 +22,26 @@ RUN apt-get update -y && \
     libproj-dev \
     locales \
     postgis \
-    python3-dev \
-    python3-pip \
-    python3-setuptools \
-    python3-venv \
     vim \
   && rm -rf /var/lib/apt/lists/*
 
-# adding custom MS repository
+# install necessary locales
+RUN apt-get install -y locales
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+RUN locale-gen
+
+# add mssql
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
+RUN apt-get update -y && apt-get install -y msodbcsql unixodbc-dev mssql-tools
+RUN ln -s /opt/mssql-tools/bin/* /usr/local/bin/
 
-# install SQL Server drivers
-RUN apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql unixodbc-dev
+# add python36
+RUN add-apt-repository ppa:deadsnakes/ppa -y
+RUN apt-get update -y && apt-get install -y python3.6 python3.6-venv python3.6-dev
+RUN ln -s /usr/bin/python3.6 /usr/local/bin/python3
+RUN curl https://bootstrap.pypa.io/get-pip.py | python3.6 -
 
-# install SQL Server tools
-RUN apt-get update && ACCEPT_EULA=Y apt-get install -y mssql-tools
-RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
-RUN /bin/bash -c "source ~/.bashrc"
-
-# install necessary locales
-RUN apt-get install -y locales \
-    && echo "en_US.UTF-8 UTF-8" > /etc/locale.gen \
-    && locale-gen
-RUN pip3 install --upgrade pip
-
-# install SQL Server Python SQL Server connector module - pyodbc
-RUN pip3 install pyodbc
-
-# Install nodejs 8.x
-RUN curl -sL https://deb.nodesource.com/setup_8.x | bash -
+# add node8
+RUN curl https://deb.nodesource.com/setup_8.x | bash -
 RUN apt-get install -y nodejs
