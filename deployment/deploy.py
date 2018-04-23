@@ -142,7 +142,8 @@ class Deployer:
     def self_update(self):
         """Manage this repo."""
         self._update_venv(self.deploy_venv)
-        self.run('git pull') and self.run('git submodule update')
+        git = 'git -C %s' % self.root
+        self.run('%s pull' % git) and self.run('%s submodule update' % git)
 
     def install(self):
         setup_path = path.join(self.project_root, 'setup.py')
