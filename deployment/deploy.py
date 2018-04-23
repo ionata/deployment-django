@@ -65,8 +65,7 @@ class Deployer:
         try:
             from dotenv import load_dotenv
         except ImportError:
-            import pip
-            pip.main(['install', '--upgrade', 'python-dotenv'])
+            self._update_venv(self.deploy_venv)
             self._rerun_in_venv()
             return
         for envfile in [self.deploy_env, self.project_env]:
@@ -85,7 +84,8 @@ class Deployer:
 
     def _update_venv(self, venv_dir):  # pylint: disable=no-self-use
         pip = _bin(venv_dir, 'pip')
-        cmd = '%s install --upgrade pip pipenv setuptools wheel' % pip
+        tools = 'pip pipenv setuptools wheel python-dotenv'
+        cmd = '%s install --upgrade %s' % (pip, tools)
         run(cmd.split(' '))
 
     def _rerun_in_venv(self):
