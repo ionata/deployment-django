@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Wrapper for ensuring dj-core style projects run properly."""
 # pylint: disable=expression-not-assigned
-import os
 import sys
-from os import environ, path
+from os import chdir, environ
+from os import name as os_name
+from os import path
 from pathlib import Path
 from shutil import which
 from subprocess import run
 
-WIN = os.name == 'nt'
+WIN = os_name == 'nt'
 bin_dir = 'Scripts' if WIN else 'bin'
 
 
@@ -60,6 +61,7 @@ class Deployer:
         self.project_venv = path.realpath(
             environ.get('PROJECT_VENV', path.join(self.root, 'venv')))
         self.project_bin = path.join(self.project_venv, bin_dir)
+        self.pipfile_path = path.join(self.project_root, 'Pipfile')
 
     def _setup(self):
         try:
@@ -68,6 +70,8 @@ class Deployer:
             self._update_venv(self.deploy_venv)
             self._rerun_in_venv()
             return
+        Path(self.project_root).mkdir(parents=True, exist_ok=True)
+        chdir(self.project_root)
         for envfile in [self.deploy_env, self.project_env]:
             if path.exists(envfile):
                 load_dotenv(envfile, override=True)
@@ -75,6 +79,10 @@ class Deployer:
     @property
     def _in_venv(self):
         return environ.get('VIRTUAL_ENV') == self.deploy_venv
+
+    @property
+    def has_pipenv(self):
+        return path.exists(self.pipfile_path)
 
     def _create_venv(self, venv_dir):
         if not path.exists(_bin(venv_dir, 'pip')):
@@ -130,12 +138,18 @@ class Deployer:
             if self.project_bin not in env['PATH']:
                 env['PATH'] = ':'.join([self.project_bin, env['PATH']])
                 environ['PATH'] = env['PATH']
+            ppath = env.get('PYTHONPATH', '')
+            if self.project_root not in ppath:
+                env['PYTHONPATH'] = ':'.join([self.project_bin, ppath])
+                environ['PYTHONPATH'] = env['PYTHONPATH']
         if cmd[0][0] != '/':
             command = which(cmd[0])
             if command is None:
                 print('{} is not on the path ({})'.format(cmd[0], env['PATH']))
                 return
             cmd[0] = command
+            if self.has_pipenv:
+                cmd = ['pipenv', 'run'] + cmd
         print('> ' + ' '.join(cmd))
         run(cmd, env=env, **kwargs)
 
@@ -147,12 +161,10 @@ class Deployer:
 
     def install(self):
         setup_path = path.join(self.project_root, 'setup.py')
-        pipfile_path = path.join(self.project_root, 'Pipfile')
-        if not path.exists(setup_path) and not path.exists(pipfile_path):
-            self.run('git clone {} {}'.format(
-                environ['DJCORE_GIT_REPO'], self.project_root))
-        if path.exists(pipfile_path):
-            os.chdir(self.project_root)
+        if not path.exists(setup_path) and not path.exists(self.pipfile_path):
+            self.run('git clone {} {}'.format(environ['DJCORE_GIT_REPO'],
+                                              self.project_root))
+        if path.exists(self.pipfile_path):
             self.run('pipenv install --dev')
         else:
             self.run('pip install -e %s[dev]' % self.project_root)
@@ -163,7 +175,8 @@ class Deployer:
     def update(self):
         self._create_venv(self.project_venv)
         self._update_venv(self.project_venv)
-        if path.exists(path.join(self.project_root, '.git')) and not self._in_container:
+        cloned = path.exists(path.join(self.project_root, '.git'))
+        if cloned and not self._in_container:
             git = 'git -C %s' % self.project_root
             self.run('%s pull' % git)
             self.run('%s submodule update' % git)
