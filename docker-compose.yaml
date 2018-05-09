@@ -1,5 +1,5 @@
 version: '3'
-volumes: {home:, db:, msdb:, var:, denv:, venv:, minio1:, minio2:, redis:, npm:}
+volumes: {home:, db:, msdb:, minio1:, minio2:, redis:, npm:}
 services:
   db:
     environment: ["POSTGRES_USER=django", "POSTGRES_PASSWORD=django"]
@@ -18,38 +18,31 @@ services:
     image: "minio/minio"
     volumes: ["minio1:/export", "minio2:/root/.config"]
   backend: &backend
-    command: "/bin/true"
-    build:
-      context: "."
-      dockerfile: "./deployment/conf/docker/Dockerfile"
-    image: "ionata_backend"
+    image: "ionata/backend"
     links: ["db", "minio", "msdb", "redis"]
     environment:
-      - "DJANGO_SETTINGS_MODULE=dj_core.settings"
-      - "DJCORE_APP_NAME=${COMPOSE_PROJECT_NAME:-blankproject}"
-      - "DJCORE_DEBUG=1"
-      - "DJCORE_SECRET_KEY=super_secret_secret_key"
-      - "PYTHONDONTWRITEBYTECODE=nope"
-      - "LC_ALL=C.UTF-8"
-      - "LANG=C.UTF-8"
+      DJANGO_SETTINGS_MODULE: "dj_core.settings"
+      DJCORE_APP_NAME: "${COMPOSE_PROJECT_NAME:-blankproject}"
+      DJCORE_DEBUG: "1"
+      DJCORE_DEFAULT_FROM_EMAIL: "Ionata Developers <no-reply@dev.ionata.com>"
+      DJCORE_SECRET_KEY: "super_secret_secret_key"
+      DJCORE_SERVER_EMAIL: "no-reply@ionata.com"
+      PYTHONPATH: "/var/www"
+      PYTHONDONTWRITEBYTECODE: "nope"
     stdin_open: true
     tty: true
     volumes:
-      - "var:/var/www/var"
-      - "venv:/var/www/venv"
-      - "denv:/var/www/denv"
       - "home:/root"
-      - "./deployment:/var/www/deployment"
-      - "${BACKEND_ROOT:-./backend}:/var/www/backend"
+      - "${BACKEND_ROOT:-./backend}:/var/www"
   celery:
     <<: *backend
-    command: "/var/www/deployment/deploy.py celery worker -A dj_core -l info -B"
+    command: "pipenv run celery worker -A dj_core -l info -B"
   runserver:
     <<: *backend
-    command: "/var/www/deployment/deploy.py run-dev"
+    command: "pipenv run django-admin runserver_plus 0.0.0.0:8000 --nopin"
   frontend:
     command: "npm run --prefix /var/www dev"
-    image: "ionata_backend"
+    image: "node"
     volumes: ["${FRONTEND_ROOT:-./frontend}:/var/www"]
   web:
     image: "nginx:mainline-alpine"
